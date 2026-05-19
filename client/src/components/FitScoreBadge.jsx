@@ -1,20 +1,44 @@
 import React from 'react';
 
+const TIERS = [
+  {
+    min: 80,
+    bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+    text: 'text-emerald-700 dark:text-emerald-400',
+    border: 'border-emerald-200 dark:border-emerald-800/60',
+    dot: 'bg-emerald-500',
+    label: 'Great Match',
+  },
+  {
+    min: 60,
+    bg: 'bg-amber-50 dark:bg-amber-900/20',
+    text: 'text-amber-700 dark:text-amber-400',
+    border: 'border-amber-200 dark:border-amber-800/60',
+    dot: 'bg-amber-500',
+    label: 'Good Match',
+  },
+  {
+    min: 0,
+    bg: 'bg-red-50 dark:bg-red-900/20',
+    text: 'text-red-700 dark:text-red-400',
+    border: 'border-red-200 dark:border-red-800/60',
+    dot: 'bg-red-500',
+    label: 'Low Match',
+  },
+];
+
 const FitScoreBadge = ({ score }) => {
-    if (score === undefined || score === null) return null;
+  if (score === undefined || score === null) return null;
 
-    let colorClass = 'bg-slate-100 text-slate-600';
-    if (score >= 80) colorClass = 'bg-green-100 text-green-700 border-green-200';
-    else if (score >= 60) colorClass = 'bg-blue-100 text-blue-700 border-blue-200';
-    else if (score >= 40) colorClass = 'bg-yellow-100 text-yellow-700 border-yellow-200';
-    else colorClass = 'bg-red-100 text-red-700 border-red-200';
+  const tier = TIERS.find(t => score >= t.min);
 
-    return (
-        <div className={`px-3 py-1 rounded-full border text-sm font-bold flex items-center gap-1 ${colorClass}`}>
-            <span className="text-xs font-medium uppercase tracking-wider">Fit Score</span>
-            <span>{score}%</span>
-        </div>
-    );
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold ${tier.bg} ${tier.text} ${tier.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tier.dot}`} />
+      <span>{score}%</span>
+      <span className="opacity-70 font-medium">{tier.label}</span>
+    </div>
+  );
 };
 
 export default FitScoreBadge;

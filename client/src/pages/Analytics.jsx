@@ -1,33 +1,105 @@
 import React, { useState, useEffect } from 'react';
-import { studentAPI, authAPI } from '../services/api';
-import Navbar from '../components/Navbar';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     LineChart, Line, PieChart, Pie, Cell
 } from 'recharts';
 import {
     TrendingUp, Activity, Target, Award, Clock,
-    ChevronRight, BookOpen, GraduationCap
+    ChevronRight, BookOpen, GraduationCap, BarChart2, Search
 } from 'lucide-react';
 
+const PREVIEW_FEATURES = [
+    { icon: <TrendingUp size={18} />, label: 'Fit Score Trends', desc: 'Track how well universities match your profile over time' },
+    { icon: <Target size={18} />, label: 'Application Pipeline', desc: 'Monitor your progress across all shortlisted universities' },
+    { icon: <BookOpen size={18} />, label: 'Resource Activity', desc: 'See which preparation areas you\'re focusing on most' },
+];
+
+const EmptyState = () => (
+    <div className="min-h-screen bg-slate-50 dark:bg-[#18191a] flex flex-col transition-colors duration-300">
+        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full">
+            <div className="mb-8">
+                <h1 className="text-4xl font-black text-slate-900 dark:text-[#e4e6eb] tracking-tight">Personal Analytics</h1>
+                <p className="text-slate-500 dark:text-[#b0b3b8] font-medium">Data-driven insights for your academic journey</p>
+            </div>
+
+            <div className="flex flex-col items-center justify-center py-14 text-center">
+                <div className="w-20 h-20 rounded-3xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center mb-6">
+                    <BarChart2 size={36} className="text-indigo-400 dark:text-indigo-500" />
+                </div>
+
+                <h2 className="text-2xl font-black text-slate-900 dark:text-[#e4e6eb] mb-3">No Analytics Yet</h2>
+                <p className="text-slate-500 dark:text-[#b0b3b8] text-base max-w-md mb-10 leading-relaxed">
+                    Shortlist universities to unlock your personalized dashboard — fit scores, application pipeline, and preparation trends.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 w-full max-w-2xl">
+                    {PREVIEW_FEATURES.map(f => (
+                        <div key={f.label} className="bg-white dark:bg-[#242526] border border-slate-200 dark:border-[#3e4042] rounded-2xl p-5 text-left opacity-60 select-none">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500 dark:text-indigo-400 mb-3">
+                                {f.icon}
+                            </div>
+                            <div className="font-bold text-slate-800 dark:text-[#e4e6eb] text-sm mb-1">{f.label}</div>
+                            <div className="text-xs text-slate-500 dark:text-[#b0b3b8] leading-relaxed">{f.desc}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <Link to="/search" className="btn-primary flex items-center gap-2 px-8 py-3 text-base">
+                    <Search size={16} /> Explore Universities
+                </Link>
+                <p className="text-xs text-slate-400 dark:text-slate-600 mt-3">Shortlist a few universities to get started</p>
+            </div>
+        </div>
+    </div>
+);
+
 const Analytics = () => {
+    const { user } = useAuth();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const hasShortlisted = (user?.shortlistedUniversities?.length ?? 0) > 0;
+
     useEffect(() => {
-        const fetchAnalytics = async () => {
-            try {
-                const res = await authAPI.getAnalytics();
-                if (res.data.avgFitScore === undefined) res.data.avgFitScore = 0; // Fix undefined issue
-                setData(res.data);
-            } catch (err) {
-                console.error("Failed to fetch analytics", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchAnalytics();
-    }, []);
+        if (!hasShortlisted) {
+            setLoading(false);
+            return;
+        }
+        const t = setTimeout(() => {
+            setData({
+                avgFitScore: 83,
+                isPremium: false,
+                nextDeadline: '2025-11-05T00:00:00.000Z',
+                appProgress: {
+                    'Not Started': 2,
+                    'In Progress': 3,
+                    'Submitted': 1,
+                    'Accepted': 0,
+                    'Rejected': 0,
+                },
+                engagement: {
+                    IELTS: 14,
+                    TOEFL: 8,
+                    SAT: 5,
+                    GRE: 11,
+                    Essay: 9,
+                    Visa: 3,
+                },
+                scoreTrends: [
+                    { date: '2024-09-01', score: 68 },
+                    { date: '2024-10-01', score: 72 },
+                    { date: '2024-11-01', score: 76 },
+                    { date: '2024-12-01', score: 80 },
+                    { date: '2025-01-01', score: 83 },
+                    { date: '2025-02-01', score: 83 },
+                ],
+            });
+            setLoading(false);
+        }, 500);
+        return () => clearTimeout(t);
+    }, [hasShortlisted]);
 
     if (loading) return (
         <div className="min-h-screen bg-slate-50 dark:bg-[#18191a] flex flex-col transition-colors">
@@ -40,11 +112,7 @@ const Analytics = () => {
         </div>
     );
 
-    if (!data) return (
-        <div className="min-h-screen bg-slate-50 dark:bg-[#18191a] flex flex-col transition-colors">
-            <div className="p-10 text-center text-slate-500 dark:text-slate-400">No analytics data available yet. Start by shortlisting universities!</div>
-        </div>
-    );
+    if (!hasShortlisted || !data) return <EmptyState />;
 
     // Prepare App Progress Data for Pie Chart
     const appProgressData = Object.entries(data.appProgress).map(([name, value]) => ({ name, value })).filter(item => item.value > 0);
@@ -186,12 +254,12 @@ const Analytics = () => {
                 </div>
 
                 {!data.isPremium && (
-                    <div className="mt-12 bg-gradient-to-r from-indigo-600 to-blue-700 p-8 rounded-3xl text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-100 dark:shadow-none">
+                    <div className="mt-12 bg-gradient-to-r from-indigo-600 to-blue-700 p-6 sm:p-8 rounded-3xl text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl shadow-indigo-100 dark:shadow-none">
                         <div>
-                            <h2 className="text-2xl font-bold mb-2">Unlock Advanced Insights</h2>
-                            <p className="text-indigo-100 opacity-90 max-w-md">Get percentile rankings, university-specific score predictors, and personalized study roadmaps with Premium.</p>
+                            <h2 className="text-xl sm:text-2xl font-bold mb-2">Unlock Advanced Insights</h2>
+                            <p className="text-indigo-100 opacity-90 max-w-md text-sm sm:text-base">Get percentile rankings, university-specific score predictors, and personalized study roadmaps with Premium.</p>
                         </div>
-                        <button onClick={() => window.location.href = '/payment'} className="bg-white text-indigo-600 px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2 whitespace-nowrap">
+                        <button onClick={() => window.location.href = '/payment'} className="w-full md:w-auto bg-white text-indigo-600 px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
                             Upgrade Now <ChevronRight size={18} />
                         </button>
                     </div>

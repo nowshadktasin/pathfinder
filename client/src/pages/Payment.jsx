@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from '../components/Navbar';
-import { authAPI } from '../services/api';
-import api from '../services/api';
 import { CheckCircle, CreditCard, ShieldCheck, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,33 +32,19 @@ const Payment = () => {
         setStatus(null);
         setStep(0);
 
-        try {
-            const res = await api.post('/payment/process', {
-                amount: 2999,
-                currency: 'USD',
-                planName: 'Elite Pathfinder Premium',
-                source: 'tok_visa'
-            });
-
-            // Ensure the UI steps show for at least some time
-            await new Promise(resolve => setTimeout(resolve, 3200));
-
-            setTransaction(res.data);
-            setStatus('success');
-
-            // Refresh would ideally be handled by context or global state
-        } catch (error) {
-            console.error(error);
-            setStatus('error');
-        } finally {
-            setProcessing(false);
-        }
+        // Simulate payment processing steps
+        await new Promise(resolve => setTimeout(resolve, 3200));
+        setTransaction({
+            transactionId: `TXN-${Date.now()}`,
+            plan: 'Elite Pathfinder Premium',
+        });
+        setStatus('success');
+        setProcessing(false);
     };
 
     if (status === 'success') {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col">
-                <Navbar />
+            <div className="flex items-center justify-center px-4 py-16 min-h-[calc(100vh-160px)]">
                 <div className="flex-grow flex items-center justify-center p-4">
                     <div className="bg-white p-8 rounded-2xl shadow-2xl border border-green-100 max-w-md w-full text-center relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
@@ -92,8 +75,7 @@ const Payment = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
-            <Navbar />
+        <div className="flex items-center justify-center px-4 py-16 min-h-[calc(100vh-160px)]">
             <div className="flex-grow flex items-center justify-center p-4">
                 <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 max-w-lg w-full">
                     <div className="flex justify-between items-start mb-8">

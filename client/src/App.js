@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { CompareProvider } from './context/CompareContext';
 import Layout from './components/Layout';
 import Welcome from './pages/Welcome';
 import Home from './pages/Home';
@@ -63,6 +64,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <ToastProvider>
+            <CompareProvider>
             <Layout>
               <Routes>
                 <Route path="/welcome" element={<Welcome />} />
@@ -137,6 +139,7 @@ function App() {
                 } />
               </Routes>
             </Layout>
+            </CompareProvider>
           </ToastProvider>
         </ThemeProvider>
       </AuthProvider>

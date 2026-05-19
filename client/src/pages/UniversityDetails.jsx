@@ -1,50 +1,95 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { universityAPI, shortlistAPI } from '../services/api';
+import { mockUniversities } from '../services/mockData';
 import { useAuth } from '../context/AuthContext';
 import FitScoreBadge from '../components/FitScoreBadge';
-import { MapPin, Globe, DollarSign, Award, BookOpen, Heart, CheckCircle } from 'lucide-react';
+import ComingSoonModal from '../components/ComingSoonModal';
+import { MapPin, Globe, DollarSign, Award, BookOpen, Heart, CheckCircle, FileText } from 'lucide-react';
+
+const EXTRA_DETAILS = {
+  uni1: {
+    description: 'MIT is a world-renowned research university in Cambridge, Massachusetts, known for its cutting-edge research in science, technology, and engineering. Founded in 1861, MIT has produced 97 Nobel laureates and is consistently ranked #1 globally.',
+    academics: { majorsOffered: ['Computer Science', 'Engineering', 'Physics', 'Mathematics', 'Biology', 'Economics', 'Architecture'], studentTeacherRatio: '3:1', facultyStrength: 1000 },
+    financials: { financialAidAvailable: true },
+    campusLife: { campusType: 'Urban Research Campus', facilities: ['Libraries', 'Labs', 'Recreation Center', 'Student Housing', 'Museums', 'Startup Hub'] },
+    admissions: { requirements: { minGPA: 3.9, testScores: { sat: { min: 1500 }, toefl: { min: 100 } } }, applicationDeadlines: [{ term: 'Fall 2025', deadline: '2025-01-01' }] },
+    testimonials: [{ studentName: 'Rohan Kapoor', major: 'EECS', graduationYear: 2023, rating: 5, testimonial: 'The research opportunities at MIT are unparalleled. I co-authored two papers as an undergrad.' }],
+  },
+  uni2: {
+    description: 'The University of Oxford is the oldest university in the English-speaking world, offering a unique collegiate system and tutorial-based learning across humanities, sciences, and social sciences.',
+    academics: { majorsOffered: ['Law', 'Medicine', 'Philosophy', 'Economics', 'History', 'Computer Science', 'Engineering'], studentTeacherRatio: '11:1', facultyStrength: 1800 },
+    financials: { financialAidAvailable: true },
+    campusLife: { campusType: 'Historic City Campus', facilities: ['Bodleian Library', 'Sports Facilities', 'College Dining', 'Research Centers', 'Student Unions'] },
+    admissions: { requirements: { minGPA: 3.8, testScores: { toefl: { min: 110 } } }, applicationDeadlines: [{ term: 'Michaelmas 2025', deadline: '2025-01-22' }] },
+    testimonials: [{ studentName: 'Mei Lin', major: 'PPE', graduationYear: 2023, rating: 5, testimonial: 'The tutorial system forces you to think deeply. Best intellectual experience of my life.' }],
+  },
+  uni3: {
+    description: 'The University of Toronto is Canada\'s top-ranked university, a global leader in research and innovation with strong programs in engineering, medicine, and computer science.',
+    academics: { majorsOffered: ['Business', 'Computer Science', 'Engineering', 'Health Sciences', 'Law', 'Arts & Sciences'], studentTeacherRatio: '21:1', facultyStrength: 2600 },
+    financials: { financialAidAvailable: true },
+    campusLife: { campusType: 'Urban Downtown Campus', facilities: ['Libraries', 'Gym', 'Student Housing', 'Innovation Hub', 'Co-op Office'] },
+    admissions: { requirements: { minGPA: 3.5, testScores: { toefl: { min: 93 } } }, applicationDeadlines: [{ term: 'Fall 2025', deadline: '2025-04-01' }] },
+    testimonials: [{ studentName: 'Ahmed Al-Rashid', major: 'Computer Science', graduationYear: 2024, rating: 5, testimonial: 'The diversity on campus is incredible. I had classmates from 150+ countries and amazing co-op opportunities.' }],
+  },
+  uni4: {
+    description: 'ETH Zurich is one of the world\'s leading universities for natural sciences and technology, with low tuition fees and exceptional research infrastructure in the heart of Europe.',
+    academics: { majorsOffered: ['Engineering', 'Architecture', 'Natural Sciences', 'Mathematics', 'Computer Science', 'Management'], studentTeacherRatio: '16:1', facultyStrength: 500 },
+    financials: { financialAidAvailable: false },
+    campusLife: { campusType: 'City-Integrated Campus', facilities: ['Modern Labs', 'Sports Center', 'Student Housing', 'Innovation Park', 'Language Center'] },
+    admissions: { requirements: { minGPA: 3.7, testScores: { toefl: { min: 95 } } }, applicationDeadlines: [{ term: 'Autumn 2025', deadline: '2025-04-30' }] },
+    testimonials: [],
+  },
+  uni5: {
+    description: 'NUS is Asia\'s top university, combining the best of Eastern and Western academic traditions with strong industry connections and a vibrant multicultural campus.',
+    academics: { majorsOffered: ['Business', 'Computing', 'Medicine', 'Design', 'Engineering', 'Law', 'Arts & Social Sciences'], studentTeacherRatio: '16:1', facultyStrength: 2600 },
+    financials: { financialAidAvailable: true },
+    campusLife: { campusType: 'Residential Urban Campus', facilities: ['Libraries', 'Recreation Center', 'University Cultural Centre', 'Start-up Lab', 'Hospital'] },
+    admissions: { requirements: { minGPA: 3.6, testScores: { toefl: { min: 85 } } }, applicationDeadlines: [{ term: 'AY 2025/2026', deadline: '2025-03-15' }] },
+    testimonials: [],
+  },
+  uni6: {
+    description: 'The University of Melbourne is Australia\'s #1 university, known for its research excellence, vibrant campus culture, and strong graduate employability.',
+    academics: { majorsOffered: ['Arts', 'Science', 'Commerce', 'Engineering', 'Education', 'Medicine', 'Law'], studentTeacherRatio: '22:1', facultyStrength: 5000 },
+    financials: { financialAidAvailable: true },
+    campusLife: { campusType: 'Parkland Urban Campus', facilities: ['Libraries', 'Sports Precinct', 'Student Services', 'Student Housing', 'Arts & Culture Centers'] },
+    admissions: { requirements: { minGPA: 3.3, testScores: { toefl: { min: 79 } } }, applicationDeadlines: [{ term: 'Semester 1 2025', deadline: '2025-10-31' }] },
+    testimonials: [],
+  },
+};
 
 const UniversityDetails = () => {
     const { id } = useParams();
     const [university, setUniversity] = useState(null);
-    const [fitScore, setFitScore] = useState(null);
     const [loading, setLoading] = useState(true);
-    const { user, updateUser } = useAuth(); // Need updateUser to refresh shortlist in context if needed
+    const [shortlisted, setShortlisted] = useState(false);
+    const [showComingSoon, setShowComingSoon] = useState(false);
+    const { user } = useAuth();
 
     useEffect(() => {
-        const fetchDetails = async () => {
-            try {
-                const uniRes = await universityAPI.getById(id);
-                setUniversity(uniRes.data);
-
-                if (user) {
-                    const fitRes = await universityAPI.getFitScore(id);
-                    setFitScore(fitRes.data.fitScore);
-                }
-            } catch (error) {
-                console.error("Error fetching details", error);
+        const t = setTimeout(() => {
+            const base = mockUniversities.find(u => u._id === id);
+            if (base) {
+                const extra = EXTRA_DETAILS[id] || {};
+                setUniversity({ ...base, ...extra });
             }
             setLoading(false);
-        };
-        fetchDetails();
-    }, [id, user]);
+        }, 300);
+        return () => clearTimeout(t);
+    }, [id]);
 
-    const isShortlisted = user?.shortlistedUniversities?.some(item =>
-        item.university && (typeof item.university === 'string' ? item.university : item.university?._id) === id
-    );
-
-    const handleShortlist = async () => {
-        if (!user) return alert("Please login to shortlist");
-        try {
-            await shortlistAPI.add(id, { fitScore });
-            // Refresh user profile to update local shortlist state
-            // In a real app we might just update local state optimistically
-            alert("Added to shortlist!");
-            window.location.reload(); // Simple refresh to sync state
-        } catch (error) {
-            alert(error.response?.data?.message || "Failed to shortlist");
+    useEffect(() => {
+        if (user?.shortlistedUniversities) {
+            setShortlisted(user.shortlistedUniversities.some(item =>
+                item.university && (item.university._id === id || item.university === id)
+            ));
         }
+    }, [user, id]);
+
+    const fitScore = university?.fitScore || null;
+
+    const handleShortlist = () => {
+        if (!user) return alert('Please login to shortlist');
+        setShortlisted(true);
     };
 
     if (loading) return <div className="p-10 text-center">Loading...</div>;
@@ -67,13 +112,13 @@ const UniversityDetails = () => {
                             {user && <FitScoreBadge score={fitScore} />}
                             <button
                                 onClick={handleShortlist}
-                                disabled={isShortlisted}
-                                className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${isShortlisted
+                                disabled={shortlisted}
+                                className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${shortlisted
                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-default'
                                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20'
                                     }`}
                             >
-                                {isShortlisted ? <><CheckCircle size={18} /> Shortlisted</> : <><Heart size={18} /> Shortlist</>}
+                                {shortlisted ? <><CheckCircle size={18} /> Shortlisted</> : <><Heart size={18} /> Shortlist</>}
                             </button>
                         </div>
                     </div>
@@ -118,7 +163,7 @@ const UniversityDetails = () => {
                                 <h3 className="font-medium text-slate-900 dark:text-[#e4e6eb] mb-2">Requirements</h3>
                                 <ul className="space-y-2 text-sm text-slate-600 dark:text-[#b0b3b8] list-disc pl-4 marker:text-blue-500">
                                     <li>Min GPA: <span className="font-medium text-slate-900 dark:text-[#e4e6eb]">{university.admissions?.requirements?.minGPA}</span></li>
-                                    <li>Acceptance Rate: <span className="font-medium text-slate-900 dark:text-[#e4e6eb]">{(university.admissions?.acceptanceRate * 100).toFixed(1)}%</span></li>
+                                    <li>Acceptance Rate: <span className="font-medium text-slate-900 dark:text-[#e4e6eb]">{university.admissions?.acceptanceRate}%</span></li>
                                     {university.admissions?.requirements?.testScores?.sat?.min && (
                                         <li>SAT: <span className="font-medium text-slate-900 dark:text-[#e4e6eb]">{university.admissions.requirements.testScores.sat.min}+</span></li>
                                     )}
@@ -196,8 +241,32 @@ const UniversityDetails = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Apply CTA */}
+                    <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-xl p-6 text-white shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30">
+                        <div className="flex items-center gap-2 mb-2">
+                            <FileText size={18} />
+                            <h3 className="font-extrabold text-base">Start Application</h3>
+                        </div>
+                        <p className="text-indigo-200 text-sm leading-relaxed mb-4">
+                            Track your documents, deadlines, and submit your application — all in one place.
+                        </p>
+                        <button
+                            onClick={() => setShowComingSoon(true)}
+                            className="w-full bg-white text-indigo-700 font-extrabold text-sm py-2.5 rounded-xl hover:bg-indigo-50 active:scale-95 transition-all shadow-sm"
+                        >
+                            Apply Now
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {showComingSoon && (
+                <ComingSoonModal
+                    uniName={university.name}
+                    onClose={() => setShowComingSoon(false)}
+                />
+            )}
         </div>
     );
 };
