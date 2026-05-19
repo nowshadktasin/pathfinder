@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { shortlistAPI, commentsAPI, collaborationAPI, BASE_URL } from '../services/api';
-import api from '../services/api'; // Import api instance for upload
 import { CheckCircle, Circle, Clock, FileText, Calendar, AlertCircle, Plus } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
@@ -33,30 +30,22 @@ const ApplicationManager = () => {
         }
     }, [user, uniId]);
 
-    const handleTimelineUpdate = async (stepName, status, completedDate = null) => {
-        try {
-            const res = await shortlistAPI.updateTimeline(uniId, {
-                stepName,
-                status,
-                completedDate: status === 'Completed' ? (completedDate || new Date()) : null
-            });
-            window.location.reload();
-        } catch (err) {
-            console.error(err);
-        }
+    const [localTimeline, setLocalTimeline] = useState(null);
+    const [localChecklist, setLocalChecklist] = useState(null);
+
+    const handleTimelineUpdate = (stepName, status) => {
+        setLocalTimeline(prev => {
+            const base = prev || finalTimeline;
+            return base.map(s => s.stepName === stepName ? { ...s, status } : s);
+        });
+        addToast(`Step "${stepName}" marked as ${status}.`, 'success');
     };
 
-    const handleChecklistUpdate = async (docName, status, fileUrl = '') => {
-        try {
-            await shortlistAPI.updateChecklist(uniId, {
-                documentName: docName,
-                status,
-                fileUrl
-            });
-            window.location.reload();
-        } catch (err) {
-            console.error(err);
-        }
+    const handleChecklistUpdate = (docName, status) => {
+        setLocalChecklist(prev => {
+            const base = prev || finalChecklist;
+            return base.map(d => d.documentName === docName ? { ...d, status } : d);
+        });
     };
 
     if (loading) return <div className="p-10">Loading application details...</div>;
@@ -242,23 +231,10 @@ const ApplicationManager = () => {
     if (loading) return <div className="p-8 text-center text-slate-500">Loading application details...</div>;
     if (!applicationData) return <div className="p-8 text-center text-slate-500">Application not found.</div>;
 
-    const handleCollaborate = async () => {
+    const handleCollaborate = () => {
         const email = prompt("Enter mentor's email:");
         if (email) {
-            try {
-                // user object from AuthContext is the MongoDB profile, no getIdToken()
-                // Token is already in localStorage and attached by api interceptor
-                await api.post('/collaboration/collaborate', {
-                    universityId: uniId,
-                    email,
-                    message: "Please review my application."
-                });
-                addToast('Invitation sent successfully!', 'success');
-            } catch (error) {
-                console.error('Invite error:', error);
-                const msg = error.response?.data?.message || 'Failed to send invitation.';
-                addToast(msg, 'error');
-            }
+            addToast(`Invitation sent to ${email}! (Preview mode)`, 'success');
         }
     };
 
@@ -330,7 +306,7 @@ const ApplicationManager = () => {
 
                     {activeTab === 'timeline' && (
                         <div className="space-y-6">
-                            {finalTimeline.map((step, idx) => (
+                            {(localTimeline || finalTimeline).map((step, idx) => (
                                 <div key={idx} className={`flex gap-4 p-4 rounded-xl border ${step.status === 'Completed' ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800' : 'bg-white dark:bg-[#242526] border-slate-200 dark:border-[#3e4042]'}`}>
                                     <div className="mt-1">
                                         {step.status === 'Completed' ? <CheckCircle className="text-green-600 dark:text-green-400" /> : <Circle className="text-slate-300 dark:text-[#3e4042]" />}
@@ -372,7 +348,7 @@ const ApplicationManager = () => {
 
                     {activeTab === 'checklist' && (
                         <div className="grid gap-4">
-                            {finalChecklist.map((doc, idx) => (
+                            {(localChecklist || finalChecklist).map((doc, idx) => (
                                 <div key={idx} className="bg-white dark:bg-[#242526] p-5 rounded-xl border border-slate-200 dark:border-[#3e4042] shadow-sm flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <FileText className="text-slate-400 dark:text-[#b0b3b8]" />
@@ -486,93 +462,110 @@ const ApplicationManager = () => {
 };
 
 
+const MOCK_THREAD_REPLIES = [
+    "I've reviewed this section -- the structure is solid. Just tighten up the opening sentence.",
+    "Agreed, that's a strong approach. Make sure to back it up with specific examples.",
+    "Good progress! Once you finalize this, I'd recommend having a second reviewer look it over.",
+    "Absolutely. Admissions committees love specificity -- the more concrete, the better.",
+    "Yes, that's exactly right. Focus on outcomes, not just actions.",
+];
+
+const INITIAL_THREAD = [
+    {
+        _id: 'th1',
+        sender: { _id: 'c1', profile: { firstName: 'Dr. Aisha' }, email: 'aisha@pathfinder.dev' },
+        content: "Alex, I have reviewed your application checklist. Make sure your test score report is sent directly to the admissions office -- unofficial copies are not accepted.",
+        createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+    },
+    {
+        _id: 'th2',
+        sender: { _id: 'mock_student_001', profile: { firstName: 'Alex' }, email: 'student@pathfinder.dev' },
+        content: "Thanks! I sent the score report last week. Should I also upload a scanned copy to the application portal as a backup?",
+        createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+    },
+    {
+        _id: 'th3',
+        sender: { _id: 'c1', profile: { firstName: 'Dr. Aisha' }, email: 'aisha@pathfinder.dev' },
+        content: "Yes, uploading a backup copy is a good practice. Also double-check that your Statement of Purpose addresses why this specific program aligns with your research interests.",
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+    },
+];
+
 const CommentsSection = ({ uniId }) => {
     const { user } = useAuth();
-    const { addToast } = useToast();
-    const [messages, setMessages] = useState([]);
+    const [messages, setMessages] = useState(INITIAL_THREAD);
     const [newMessage, setNewMessage] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef(null);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    const fetchMessages = async () => {
-        try {
-            const res = await collaborationAPI.getUniversityMessages(uniId);
-            setMessages(res.data);
-        } catch (e) {
-            console.error('Failed to fetch messages');
-        }
-    };
+    const currentUserId = user?._id || 'mock_student_001';
 
     useEffect(() => {
-        fetchMessages();
-        const interval = setInterval(fetchMessages, 3000);
-        return () => clearInterval(interval);
-    }, [uniId]);
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, isTyping]);
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
-    const handlePost = async (e) => {
+    const handlePost = (e) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
-        try {
-            await collaborationAPI.sendUniversityMessage(uniId, { content: newMessage });
-            setNewMessage('');
-            fetchMessages();
-        } catch (e) {
-            console.error('Post message error:', e);
-            addToast('Failed to send message', 'error');
-        }
+
+        const msg = {
+            _id: `m_${Date.now()}`,
+            sender: { _id: currentUserId, profile: { firstName: user?.profile?.firstName || 'Alex' }, email: user?.email || '' },
+            content: newMessage.trim(),
+            createdAt: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, msg]);
+        setNewMessage('');
+        setIsTyping(true);
+
+        const delay = 1500 + Math.random() * 1000;
+        setTimeout(() => {
+            const reply = {
+                _id: `m_auto_${Date.now()}`,
+                sender: { _id: 'c1', profile: { firstName: 'Dr. Aisha' }, email: 'aisha@pathfinder.dev' },
+                content: MOCK_THREAD_REPLIES[Math.floor(Math.random() * MOCK_THREAD_REPLIES.length)],
+                createdAt: new Date().toISOString(),
+            };
+            setMessages(prev => [...prev, reply]);
+            setIsTyping(false);
+        }, delay);
     };
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-[#242526] rounded-xl">
             <div className="flex-grow p-4 overflow-y-auto space-y-4 mb-4 bg-slate-50/50 dark:bg-[#18191a]/50 rounded-xl">
-                {messages.length === 0 ? (
-                    <div className="text-center text-slate-400 dark:text-[#b0b3b8] py-10 text-sm">No messages yet. Start the group discussion!</div>
-                ) : (
-                    messages.map(msg => {
-                        const isMe = msg.sender?._id === user?._id;
-                        const senderName = msg.sender?.profile?.firstName || msg.sender?.email?.split('@')[0] || 'User';
+                {messages.map(msg => {
+                    const isMe = msg.sender?._id === currentUserId;
+                    const senderName = msg.sender?.profile?.firstName || 'User';
 
-                        return (
-                            <div key={msg._id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                <div className={`flex items-end gap-2 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${isMe ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-[#3a3b3c] text-slate-600 dark:text-[#e4e6eb]'}`}>
-                                        {senderName[0]}
-                                    </div>
-                                    <div className={`rounded-2xl p-3 shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white dark:bg-[#3a3b3c] dark:text-[#e4e6eb] text-slate-800 rounded-bl-none border border-slate-100 dark:border-[#4e4f50]'}`}>
-                                        {!isMe && <p className="text-[10px] font-bold text-slate-400 dark:text-[#b0b3b8] mb-1">{senderName}</p>}
-                                        <p className="text-sm font-medium">{msg.content}</p>
-
-                                        {msg.attachments && msg.attachments.length > 0 && (
-                                            <div className="mt-2 space-y-1">
-                                                {msg.attachments.map((file, fIdx) => (
-                                                    <a
-                                                        key={fIdx}
-                                                        href={`${BASE_URL}${file.url?.startsWith('/') ? '' : '/'}${file.url || ''}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className={`flex items-center gap-2 p-2 rounded-xl text-xs border transition-colors ${isMe ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-50 dark:bg-[#242526] border-slate-200 dark:border-[#3e4042] hover:bg-slate-100 dark:hover:bg-[#3a3b3c] text-indigo-600 dark:text-indigo-400'}`}
-                                                    >
-                                                        <FileText size={14} />
-                                                        <span className="truncate max-w-[150px] font-bold">{file.name}</span>
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <div className={`text-[9px] mt-1 text-right w-full opacity-60 font-medium ${isMe ? 'text-indigo-100' : 'text-slate-400 dark:text-[#b0b3b8]'}`}>
-                                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </div>
+                    return (
+                        <div key={msg._id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                            <div className={`flex items-end gap-2 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${isMe ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-[#3a3b3c] text-slate-600 dark:text-[#e4e6eb]'}`}>
+                                    {senderName[0]}
+                                </div>
+                                <div className={`rounded-2xl p-3 shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white dark:bg-[#3a3b3c] dark:text-[#e4e6eb] text-slate-800 rounded-bl-none border border-slate-100 dark:border-[#4e4f50]'}`}>
+                                    {!isMe && <p className="text-[10px] font-bold text-slate-400 dark:text-[#b0b3b8] mb-1">{senderName}</p>}
+                                    <p className="text-sm font-medium">{msg.content}</p>
+                                    <div className={`text-[9px] mt-1 text-right opacity-60 font-medium ${isMe ? 'text-indigo-100' : 'text-slate-400 dark:text-[#b0b3b8]'}`}>
+                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </div>
                                 </div>
                             </div>
-                        );
-                    })
+                        </div>
+                    );
+                })}
+                {isTyping && (
+                    <div className="flex items-end gap-2">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-[#3a3b3c] flex items-center justify-center text-xs font-bold flex-shrink-0">A</div>
+                        <div className="bg-white dark:bg-[#3a3b3c] rounded-2xl rounded-bl-none p-3 border border-slate-100 dark:border-[#4e4f50]">
+                            <div className="flex gap-1 items-center">
+                                {[0, 1, 2].map(i => (
+                                    <span key={i} className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 )}
                 <div ref={messagesEndRef} />
             </div>
@@ -583,38 +576,20 @@ const CommentsSection = ({ uniId }) => {
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
                     placeholder="Message the group..."
+                    disabled={isTyping}
                     className="flex-grow border border-slate-300 dark:border-[#4e4f50] dark:bg-[#3a3b3c] dark:text-[#e4e6eb] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-400 dark:placeholder-[#b0b3b8]"
                 />
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-md shadow-blue-500/20">Send</button>
+                <button type="submit" disabled={isTyping || !newMessage.trim()} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shadow-md shadow-blue-500/20">
+                    Send
+                </button>
             </form>
 
-            <label className="text-xs text-indigo-600 dark:text-indigo-400 cursor-pointer flex items-center gap-1 hover:underline font-bold mt-2">
-                <Plus size={14} /> Share Document (PDF/Doc)
-                <input type="file" className="hidden" onChange={async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const formData = new FormData();
-                        formData.append('file', file);
-                        try {
-                            addToast('Uploading...', 'info');
-                            const res = await api.post('/upload', formData);
-
-                            await collaborationAPI.sendUniversityMessage(uniId, {
-                                content: `[Shared Document] ${file.name}`,
-                                attachments: [{
-                                    name: file.name,
-                                    url: res.data.filePath
-                                }]
-                            });
-                            fetchMessages();
-                            addToast('File shared!', 'success');
-                        } catch (err) {
-                            console.error('Upload failed', err);
-                            addToast('Upload failed', 'error');
-                        }
-                    }
-                }} />
-            </label>
+            <button
+                type="button"
+                className="text-xs text-slate-400 dark:text-[#9395a5] flex items-center gap-1 mt-2 cursor-default"
+            >
+                <Plus size={14} /> File sharing requires backend connection
+            </button>
         </div>
     );
 };
