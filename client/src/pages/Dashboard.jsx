@@ -295,13 +295,13 @@ const Dashboard = () => {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
-                        <div className="bg-slate-50 dark:bg-[#3a3b3c] p-2.5 rounded-lg border border-slate-100 dark:border-[#3e4042]">
-                          <div className="text-slate-400 dark:text-[#b0b3b8] text-[10px] uppercase tracking-wider font-semibold mb-0.5">Rank</div>
-                          <div className="font-black text-slate-800 dark:text-[#e4e6eb] text-sm">#{uni.ranking?.global || 'N/A'}</div>
+                        <div className="bg-slate-50 dark:bg-[#35363a] p-2.5 rounded-lg border border-slate-200 dark:border-[#4a4b50]">
+                          <div className="text-slate-400 dark:text-[#a0a2b0] text-[10px] uppercase tracking-wider font-semibold mb-0.5">Rank</div>
+                          <div className="font-black text-slate-800 dark:text-white text-sm">#{uni.ranking?.global || 'N/A'}</div>
                         </div>
-                        <div className="bg-slate-50 dark:bg-[#3a3b3c] p-2.5 rounded-lg border border-slate-100 dark:border-[#3e4042]">
-                          <div className="text-slate-400 dark:text-[#b0b3b8] text-[10px] uppercase tracking-wider font-semibold mb-0.5">Tuition</div>
-                          <div className="font-black text-slate-800 dark:text-[#e4e6eb] text-sm truncate">
+                        <div className="bg-slate-50 dark:bg-[#35363a] p-2.5 rounded-lg border border-slate-200 dark:border-[#4a4b50]">
+                          <div className="text-slate-400 dark:text-[#a0a2b0] text-[10px] uppercase tracking-wider font-semibold mb-0.5">Tuition</div>
+                          <div className="font-black text-slate-800 dark:text-white text-sm truncate">
                             {uni.financials?.tuitionFee?.international?.currency}{uni.financials?.tuitionFee?.international?.min?.toLocaleString() || 'N/A'}
                           </div>
                         </div>
