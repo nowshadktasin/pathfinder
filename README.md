@@ -2,14 +2,6 @@
 
 **AI-powered university discovery and application guidance platform**
 
-> CSE471: System Analysis and Design — Spring 2025 · Group 03, Lab Section 13
-
-| ID       | Name                    |
-|----------|-------------------------|
-| 22101209 | Nigi Shikder            |
-| 22101393 | Mohd. Zahin Abrar       |
-| 22101679 | Sadia Islam             |
-
 **Live:** https://pathfinder-cdip-project.vercel.app
 
 ---
