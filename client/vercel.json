@@ -1,3 +1,5 @@
 {
+  "name": "pathfinder",
+  "buildCommand": "CI=false npm run build",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
